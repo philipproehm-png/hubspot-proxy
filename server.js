@@ -8,7 +8,8 @@ const {
   CLIENT_SECRET,
   SITE_ID,
   DRIVE_ID,
-  ITEM_ID
+  ITEM_ID,     // optional
+  FILE_PATH    // optional: z.B. /HR/Online-Jobs/hubfs/139531838/job_data.json
 } = process.env;
 
 async function getGraphToken() {
@@ -30,7 +31,18 @@ async function getGraphToken() {
 }
 
 async function getDownloadUrl(token) {
-  const url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/drives/${encodeURIComponent(DRIVE_ID)}/items/${ITEM_ID}?$select=@microsoft.graph.downloadUrl`;
+  // Wenn ITEM_ID gesetzt ist, nutzen wir sie; sonst Pfad
+  let url;
+  if (ITEM_ID) {
+    url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/drives/${encodeURIComponent(DRIVE_ID)}/items/${ITEM_ID}?$select=@microsoft.graph.downloadUrl`;
+  } else if (FILE_PATH) {
+    // Pfad muss URL-encoded werden, Slashes bleiben
+    const encPath = encodeURI(FILE_PATH);
+    url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/drives/${encodeURIComponent(DRIVE_ID)}/root:${encPath}?$select=@microsoft.graph.downloadUrl`;
+  } else {
+    throw new Error("Neither ITEM_ID nor FILE_PATH is set");
+  }
+
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`Graph item error ${r.status}: ${await r.text()}`);
   const j = await r.json();
@@ -39,22 +51,17 @@ async function getDownloadUrl(token) {
   return dl;
 }
 
-// Health
 app.get("/", (_req, res) => res.send("OK"));
 
-// Statische, dauerhafte URL für HubSpot
 app.get("/job-data.json", async (_req, res) => {
   try {
     const token = await getGraphToken();
     const dl = await getDownloadUrl(token);
-
     const f = await fetch(dl, { redirect: "follow" });
     if (!f.ok) return res.status(502).send(`Download error ${f.status}`);
-
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=60");
-
     const text = await f.text();
     res.send(text);
   } catch (e) {
