@@ -2,73 +2,89 @@ import express from "express";
 
 const app = express();
 
-const {
-  TENANT_ID,
-  CLIENT_ID,
-  CLIENT_SECRET,
-  SITE_ID,
-  DRIVE_ID,
-  ITEM_ID,     // optional
-  FILE_PATH    // optional: z.B. /HR/Online-Jobs/hubfs/139531838/job_data.json
-} = process.env;
-
-async function getGraphToken() {
-  const body = new URLSearchParams({
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
-    grant_type: "client_credentials",
-    scope: "https://graph.microsoft.com/.default"
-  });
-  const r = await fetch(`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  if (!r.ok) throw new Error(`Token error ${r.status}: ${await r.text()}`);
-  const j = await r.json();
-  if (!j.access_token) throw new Error("No access_token");
-  return j.access_token;
-}
-
-async function getDownloadUrl(token) {
-  // Wenn ITEM_ID gesetzt ist, nutzen wir sie; sonst Pfad
-  let url;
-  if (ITEM_ID) {
-    url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/drives/${encodeURIComponent(DRIVE_ID)}/items/${ITEM_ID}?$select=@microsoft.graph.downloadUrl`;
-  } else if (FILE_PATH) {
-    // Pfad muss URL-encoded werden, Slashes bleiben
-    const encPath = encodeURI(FILE_PATH);
-    url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/drives/${encodeURIComponent(DRIVE_ID)}/root:${encPath}?$select=@microsoft.graph.downloadUrl`;
-  } else {
-    throw new Error("Neither ITEM_ID nor FILE_PATH is set");
+// --- CORS inkl. Preflight ---
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*"); // hier ggf. auf deine Domain(en) einschränken
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204); // Preflight sofort beantworten
   }
+  next();
+});
 
-  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) throw new Error(`Graph item error ${r.status}: ${await r.text()}`);
-  const j = await r.json();
-  const dl = j["@microsoft.graph.downloadUrl"];
-  if (!dl) throw new Error("No @microsoft.graph.downloadUrl in response");
-  return dl;
-}
+// Healthcheck zum Debuggen
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "OK",
+    mode: process.env.ITEM_ID
+      ? "ITEM_ID"
+      : process.env.FILE_PATH
+      ? "FILE_PATH"
+      : "NONE",
+  });
+});
 
-app.get("/", (_req, res) => res.send("OK"));
+// Root-Route
+app.get("/", (_req, res) => {
+  res.send("OK");
+});
 
+// --- JSON-Proxy ---
 app.get("/job-data.json", async (_req, res) => {
   try {
-    const token = await getGraphToken();
-    const dl = await getDownloadUrl(token);
-    const f = await fetch(dl, { redirect: "follow" });
-    if (!f.ok) return res.status(502).send(`Download error ${f.status}`);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=60");
-    const text = await f.text();
-    res.send(text);
-  } catch (e) {
-    console.error(e);
-    res.status(500).send(String(e));
+    // Token holen
+    const tokenResp = await fetch(
+      `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.CLIENT_ID,
+          client_secret: process.env.CLIENT_SECRET,
+          scope: "https://graph.microsoft.com/.default",
+          grant_type: "client_credentials",
+        }),
+      }
+    );
+    const tokenData = await tokenResp.json();
+    if (!tokenResp.ok) throw new Error("Token error: " + JSON.stringify(tokenData));
+    const accessToken = tokenData.access_token;
+
+    // Graph-Endpunkt vorbereiten
+    let graphUrl;
+    if (process.env.ITEM_ID) {
+      graphUrl = `https://graph.microsoft.com/v1.0/sites/${process.env.SITE_ID}/drives/${process.env.DRIVE_ID}/items/${process.env.ITEM_ID}?$select=@microsoft.graph.downloadUrl`;
+    } else if (process.env.FILE_PATH) {
+      graphUrl = `https://graph.microsoft.com/v1.0/sites/${process.env.SITE_ID}/drives/${process.env.DRIVE_ID}/root:${process.env.FILE_PATH}?$select=@microsoft.graph.downloadUrl`;
+    } else {
+      throw new Error("Neither ITEM_ID nor FILE_PATH set");
+    }
+
+    // Download-URL holen
+    const itemResp = await fetch(graphUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const itemData = await itemResp.json();
+    if (!itemResp.ok) throw new Error("Graph item error: " + JSON.stringify(itemData));
+    const downloadUrl = itemData["@microsoft.graph.downloadUrl"];
+    if (!downloadUrl) throw new Error("No downloadUrl in Graph response");
+
+    // Datei abrufen und weiterreichen
+    const fileResp = await fetch(downloadUrl);
+    if (!fileResp.ok) throw new Error("Download error: " + fileResp.statusText);
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Cache-Control", "no-store, must-revalidate"); // kein Caching
+    const data = await fileResp.text();
+    res.send(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Proxy listening on :${port}`));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Proxy listening on ${PORT}`);
+});
