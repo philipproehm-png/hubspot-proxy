@@ -153,7 +153,7 @@ app.get("/seo.html", async (_req, res) => {
 
   <!-- OPTIONAL: hilft Google Jobs -->
   <meta name="robots" content="index,follow">
-<meta name="google-site-verification" content="8e98877e258eb50b" />
+<meta name="google-site-verification" content="Ad9iyvAAotewxJ2ulA5oyhN6GkJMHwZC_Y8kdFBXhMM" />
 
 </head>
 <body>
