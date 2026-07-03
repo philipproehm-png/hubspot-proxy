@@ -116,11 +116,11 @@ app.get("/seo.html", async (_req, res) => {
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>Jobs</title>
+  <title>NATO-Projektangebote für Tech-, IT- und Digitalexperten</title>
 </head>
 <body>
 
-<h1>Job Listings</h1>
+<h1>NATO-Projektangebote für Freelancer:</h1>
 
 <section>
   ${html}
