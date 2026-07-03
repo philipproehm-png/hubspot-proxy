@@ -100,7 +100,7 @@ app.get("/seo.html", async (_req, res) => {
 
         <!-- ================= JOB TITLE + FIXER LINK ================= -->
         <h2>
-          <a href="https://harborx.de/nato" target="_blank" rel="noopener">
+          <a href="https://harborx.de/projekte/nato-it-freelancer" target="_blank" rel="noopener">
             ${job.title || ""}
           </a>
         </h2>
@@ -148,8 +148,8 @@ app.get("/seo.html", async (_req, res) => {
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>NATO-Projektangebote für Tech-, IT- und Digitalexperten</title>
-<link rel="canonical" href="https://harborx.de/nato" />
+  <title>Exklusive NATO-Projektangebote für Tech-, IT- und Digitalexperten</title>
+<link rel="canonical" href="https://harborx.de/projekte/nato-it-freelancer" />
 
   <!-- OPTIONAL: hilft Google Jobs -->
   <meta name="robots" content="index,follow">
