@@ -150,8 +150,10 @@ app.get("/seo.html", async (_req, res) => {
   <meta charset="utf-8">
   <title>NATO-Projektangebote für Tech-, IT- und Digitalexperten</title>
 <link rel="canonical" href="https://harborx.de/nato" />
+
   <!-- OPTIONAL: hilft Google Jobs -->
   <meta name="robots" content="index,follow">
+<meta name="google-site-verification" content="8e98877e258eb50b" />
 
 </head>
 <body>
