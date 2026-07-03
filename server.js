@@ -90,6 +90,7 @@ app.get("/job-data.json", async (_req, res) => {
 // ======================================================
 // SEO ENDPOINT (GOOGLE INDEXIERBAR)
 // ======================================================
+
 app.get("/seo.html", async (_req, res) => {
   try {
     const jobs = await loadJobsFromGraph();
@@ -97,14 +98,45 @@ app.get("/seo.html", async (_req, res) => {
     const html = jobs.map(job => `
       <article class="job">
 
-        <h2>${job.title || ""}</h2>
+        <!-- ================= JOB TITLE + FIXER LINK ================= -->
+        <h2>
+          <a href="https://harborx.de/nato" target="_blank" rel="noopener">
+            ${job.title || ""}
+          </a>
+        </h2>
 
+        <!-- ================= META ================= -->
         <p>
           <strong>${job.category || ""}</strong>
           ${job.location ? " | " + job.location : ""}
         </p>
 
-        ${job.description ? `<p>${job.description}</p>` : ""}
+        <!-- ================= DESCRIPTION ================= -->
+        ${job.description ? `<div>${job.description}</div>` : ""}
+
+        <!-- ================= GOOGLE JOBS SCHEMA ================= -->
+        <script type="application/ld+json">
+        ${JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "JobPosting",
+          "title": job.title || "",
+          "description": job.description || "",
+          "datePosted": job.startDate || new Date().toISOString(),
+          "employmentType": job.type || "FULL_TIME",
+          "hiringOrganization": {
+            "@type": "Organization",
+            "name": "HarborX"
+          },
+          "jobLocation": {
+            "@type": "Place",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": job.location || ""
+            }
+          },
+          "validThrough": "2026-12-31"
+        })}
+        </script>
 
       </article>
     `).join("");
@@ -116,15 +148,19 @@ app.get("/seo.html", async (_req, res) => {
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <title>NATO-Projektangebote für Tech-, IT- und Digitalexperten</title>
+  <title>NATO Jobs – IT & Security Projekte</title>
+
+  <!-- OPTIONAL: hilft Google Jobs -->
+  <meta name="robots" content="index,follow">
+
 </head>
 <body>
 
-<h1>NATO-Projektangebote für Freelancer:</h1>
+  <h1>Job Listings</h1>
 
-<section>
-  ${html}
-</section>
+  <section>
+    ${html}
+  </section>
 
 </body>
 </html>
