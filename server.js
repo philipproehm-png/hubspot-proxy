@@ -158,7 +158,7 @@ app.get("/seo.html", async (_req, res) => {
 </head>
 <body>
 
-  <h1>NATO-Projektangebote</h1>
+  <h1>HarborX: NATO-Projektangebote für Freelancer</h1>
 
   <section>
     ${html}
