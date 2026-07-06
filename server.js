@@ -16,9 +16,22 @@ app.get("/health", (_req, res) => {
   res.json({ status: "OK" });
 });
 
-// ---------------- ROOT ----------------
+// ---------------- ROOT (Jetzt mit Google Verifizierung) ----------------
 app.get("/", (_req, res) => {
-  res.send("OK");
+  res.send(`
+    <!doctype html>
+    <html lang="de">
+    <head>
+      <meta charset="utf-8">
+      <meta name="google-site-verification" content="Ad9iyvAAotewxJ2ulA5oyhN6GkJMHwZC_Y8kdFBXhMM" />
+      <title>HarborX Proxy Service</title>
+    </head>
+    <body>
+      <h1>HarborX Proxy Service</h1>
+      <p>System aktiv.</p>
+    </body>
+    </html>
+  `);
 });
 
 
